@@ -3,7 +3,9 @@
 import typing as T
 
 import pytest
-from docstring_parser.common import ParseError, RenderingStyle
+from docstring_parser import compose as compose_any
+from docstring_parser import parse as parse_any
+from docstring_parser.common import DocstringStyle, ParseError, RenderingStyle
 from docstring_parser.rest import compose, parse
 
 
@@ -27,6 +29,62 @@ def test_short_description(
     assert docstring.description == expected
     assert docstring.long_description is None
     assert not docstring.meta
+
+
+@pytest.mark.parametrize("rendering_style", list(RenderingStyle))
+@pytest.mark.parametrize(
+    "source, expected_attribute_type, expected_param_type",
+    [
+        (":attribute str value: attr\n:param int value: param", "str", "int"),
+        (":attribute value: attr\n:param int value: param", None, "int"),
+        (":attribute str value: attr\n:param value: param", "str", None),
+    ],
+)
+def test_attribute_roundtrip_keeps_same_name_types(
+    rendering_style: RenderingStyle,
+    source: str,
+    expected_attribute_type: T.Optional[str],
+    expected_param_type: T.Optional[str],
+) -> None:
+    """ReST attributes and parameters stay separate in every rendering mode."""
+    docstring = parse(source)
+    assert len(docstring.attributes) == 1
+    assert len(docstring.params) == 1
+    roundtrip = parse(
+        compose(
+            docstring,
+            rendering_style=rendering_style,
+        ),
+    )
+    assert [
+        (item.arg_name, item.type_name, item.description)
+        for item in roundtrip.attributes
+    ] == [("value", expected_attribute_type, "attr")]
+    assert [
+        (item.arg_name, item.type_name, item.description)
+        for item in roundtrip.params
+    ] == [("value", expected_param_type, "param")]
+
+
+@pytest.mark.parametrize("target_style", list(DocstringStyle)[:4])
+def test_attribute_cross_style_roundtrip(target_style: DocstringStyle) -> None:
+    """Cross-style rendering preserves parameter and attribute semantics."""
+    source = ":param int value: parameter\n:attribute str value: attribute"
+    original = parse_any(source, style=DocstringStyle.REST)
+    rendered = compose_any(
+        original,
+        style=target_style,
+        rendering_style=RenderingStyle.EXPANDED,
+    )
+    roundtrip = parse_any(rendered, style=target_style)
+    assert [
+        (item.arg_name, item.type_name, item.description)
+        for item in roundtrip.params
+    ] == [("value", "int", "parameter")]
+    assert [
+        (item.arg_name, item.type_name, item.description)
+        for item in roundtrip.attributes
+    ] == [("value", "str", "attribute")]
 
 
 @pytest.mark.parametrize(

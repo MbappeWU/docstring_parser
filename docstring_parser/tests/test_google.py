@@ -485,23 +485,39 @@ def test_attributes() -> None:
             ratio (Optional[float], optional): description 4
         """
     )
-    assert len(docstring.params) == 4
-    assert docstring.params[0].arg_name == "name"
-    assert docstring.params[0].type_name is None
-    assert docstring.params[0].description == "description 1"
-    assert not docstring.params[0].is_optional
-    assert docstring.params[1].arg_name == "priority"
-    assert docstring.params[1].type_name == "int"
-    assert docstring.params[1].description == "description 2"
-    assert not docstring.params[1].is_optional
-    assert docstring.params[2].arg_name == "sender"
-    assert docstring.params[2].type_name == "str"
-    assert docstring.params[2].description == "description 3"
-    assert docstring.params[2].is_optional
-    assert docstring.params[3].arg_name == "ratio"
-    assert docstring.params[3].type_name == "Optional[float]"
-    assert docstring.params[3].description == "description 4"
-    assert docstring.params[3].is_optional
+    assert len(docstring.attributes) == 4
+    assert docstring.attributes[0].arg_name == "name"
+    assert docstring.attributes[0].type_name is None
+    assert docstring.attributes[0].description == "description 1"
+    assert not docstring.attributes[0].is_optional
+    assert docstring.attributes[1].arg_name == "priority"
+    assert docstring.attributes[1].type_name == "int"
+    assert docstring.attributes[1].description == "description 2"
+
+    mixed = parse(
+        """
+        Args:
+            value: ordinary parameter
+
+        Attributes:
+            value (int): documented attribute
+        """
+    )
+    assert [(item.arg_name, item.description) for item in mixed.params] == [
+        ("value", "ordinary parameter")
+    ]
+    assert [(item.arg_name, item.type_name) for item in mixed.attributes] == [
+        ("value", "int")
+    ]
+    assert not docstring.attributes[1].is_optional
+    assert docstring.attributes[2].arg_name == "sender"
+    assert docstring.attributes[2].type_name == "str"
+    assert docstring.attributes[2].description == "description 3"
+    assert docstring.attributes[2].is_optional
+    assert docstring.attributes[3].arg_name == "ratio"
+    assert docstring.attributes[3].type_name == "Optional[float]"
+    assert docstring.attributes[3].description == "description 4"
+    assert docstring.attributes[3].is_optional
 
     docstring = parse(
         """
@@ -513,15 +529,15 @@ def test_attributes() -> None:
             priority (int): description 2
         """
     )
-    assert len(docstring.params) == 2
-    assert docstring.params[0].arg_name == "name"
-    assert docstring.params[0].type_name is None
-    assert docstring.params[0].description == (
+    assert len(docstring.attributes) == 2
+    assert docstring.attributes[0].arg_name == "name"
+    assert docstring.attributes[0].type_name is None
+    assert docstring.attributes[0].description == (
         "description 1\nwith multi-line text"
     )
-    assert docstring.params[1].arg_name == "priority"
-    assert docstring.params[1].type_name == "int"
-    assert docstring.params[1].description == "description 2"
+    assert docstring.attributes[1].arg_name == "priority"
+    assert docstring.attributes[1].type_name == "int"
+    assert docstring.attributes[1].description == "description 2"
 
 
 def test_returns() -> None:

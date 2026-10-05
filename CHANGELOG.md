@@ -1,3 +1,9 @@
+# Unreleased
+
+- Parser: expose attributes through `Docstring.attributes` and exclude them
+  from `Docstring.params` while preserving the shared `DocstringParam` and
+  `args` metadata protocol.
+
 # 0.18 (2026-04-14)
 
 - General: Allow `parse()` to work with missing `__doc__` (thanks to @jamesbraza)

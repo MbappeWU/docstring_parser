@@ -381,7 +381,7 @@ def compose(
 
     process_sect(
         "Attributes:",
-        [p for p in docstring.params or [] if p.args[0] == "attribute"],
+        docstring.attributes or [],
     )
 
     process_sect(

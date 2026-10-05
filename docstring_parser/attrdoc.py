@@ -110,7 +110,11 @@ def add_attribute_docstrings(
     :param docstring: Docstring object where found attributes are added
     :returns: list with names of added attributes
     """
-    params = set(p.arg_name for p in docstring.params)
+    # Keep the historical collision policy: a source attribute is not added
+    # when any parameter/attribute with the same name is already present.
+    params = set(
+        p.arg_name for p in docstring.meta if isinstance(p, DocstringParam)
+    )
     for arg_name, (description, type_name, default) in (
         AttributeDocstrings().get_attr_docs(obj).items()
     ):

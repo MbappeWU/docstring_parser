@@ -214,6 +214,16 @@ def compose(
     if docstring.blank_after_long_description:
         parts.append("")
 
+    param_name_counts: T.Dict[str, int] = {}
+    for meta in docstring.meta:
+        if isinstance(meta, DocstringParam):
+            param_name_counts[meta.arg_name] = (
+                param_name_counts.get(meta.arg_name, 0) + 1
+            )
+    colliding_param_names = {
+        name for name, count in param_name_counts.items() if count > 1
+    }
+
     for meta in docstring.meta:
         if isinstance(meta, DocstringParam):
             if meta.type_name:
@@ -224,14 +234,26 @@ def compose(
                 )
             else:
                 type_text = " "
+            key = "attribute" if meta.is_attribute else "param"
             if rendering_style == RenderingStyle.EXPANDED:
-                text = f":param {meta.arg_name}:"
+                if meta.arg_name in colliding_param_names and meta.type_name:
+                    inline_type = (
+                        f"{meta.type_name}?"
+                        if meta.is_optional
+                        else meta.type_name
+                    )
+                    text = f":{key} {inline_type} {meta.arg_name}:"
+                else:
+                    text = f":{key} {meta.arg_name}:"
                 text += process_desc(meta.description)
                 parts.append(text)
-                if type_text[:-1]:
+                if (
+                    type_text[:-1]
+                    and meta.arg_name not in colliding_param_names
+                ):
                     parts.append(f":type {meta.arg_name}:{type_text[:-1]}")
             else:
-                text = f":param{type_text}{meta.arg_name}:"
+                text = f":{key}{type_text}{meta.arg_name}:"
                 text += process_desc(meta.description)
                 parts.append(text)
         elif isinstance(meta, DocstringReturns):

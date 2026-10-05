@@ -83,6 +83,16 @@ class DocstringParam(DocstringMeta):
         self.is_optional = is_optional
         self.default = default
 
+    @property
+    def is_attribute(self) -> bool:
+        """Whether this item documents an attribute rather than a parameter."""
+        return bool(self.args) and self.args[0] in {
+            "attribute",
+            "ivar",
+            "cvar",
+            "var",
+        }
+
 
 class DocstringReturns(DocstringMeta):
     """DocstringMeta symbolizing :returns or :yields metadata."""
@@ -184,7 +194,20 @@ class Docstring:
     @property
     def params(self) -> T.List[DocstringParam]:
         """Return a list of information on function params."""
-        return [item for item in self.meta if isinstance(item, DocstringParam)]
+        return [
+            item
+            for item in self.meta
+            if isinstance(item, DocstringParam) and not item.is_attribute
+        ]
+
+    @property
+    def attributes(self) -> T.List[DocstringParam]:
+        """Return a list of information on documented attributes."""
+        return [
+            item
+            for item in self.meta
+            if isinstance(item, DocstringParam) and item.is_attribute
+        ]
 
     @property
     def raises(self) -> T.List[DocstringRaises]:

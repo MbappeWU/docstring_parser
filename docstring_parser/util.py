@@ -133,9 +133,30 @@ def combine_docstrings(
             for meta_type, meta in metas.items():
                 combined[meta_type] = meta
 
-        combined[DocstringParam] = [
+        function_params = [
             params[name] for name in sig.parameters if name in params
         ]
+        attribute_map = dict(
+            ChainMap(
+                *(
+                    {
+                        attribute.arg_name: attribute
+                        for attribute in doc.attributes
+                    }
+                    for doc in docs
+                )
+            )
+        )
+        attribute_names = [
+            attribute.arg_name for doc in docs for attribute in doc.attributes
+        ]
+        attributes = []
+        for name in attribute_names:
+            if name in attribute_map and all(
+                attribute.arg_name != name for attribute in attributes
+            ):
+                attributes.append(attribute_map[name])
+        combined[DocstringParam] = function_params + attributes
         comb_doc.meta = list(chain(*combined.values()))
         func.__doc__ = compose(
             comb_doc, style=style, rendering_style=rendering_style

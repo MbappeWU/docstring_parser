@@ -328,42 +328,73 @@ def test_attributes() -> None:
         @type multiline: str?
         """
     )
-    assert len(docstring.params) == 5
-    assert docstring.params[0].arg_name == "name"
-    assert docstring.params[0].args[0] == "ivar"
-    assert docstring.params[0].type_name is None
-    assert docstring.params[0].description == "description 1"
-    assert docstring.params[0].default is None
-    assert not docstring.params[0].is_optional
-    assert docstring.params[1].arg_name == "priority"
-    assert docstring.params[1].args[0] == "ivar"
-    assert docstring.params[1].type_name == "int"
-    assert docstring.params[1].description == "description 2"
-    assert not docstring.params[1].is_optional
-    assert docstring.params[1].default is None
-    assert docstring.params[2].arg_name == "sender"
-    assert docstring.params[2].args[0] == "cvar"
-    assert docstring.params[2].type_name == "str"
-    assert docstring.params[2].description == "description 3"
-    assert docstring.params[2].is_optional
-    assert docstring.params[2].default is None
-    assert docstring.params[3].arg_name == "message"
-    assert docstring.params[3].args[0] == "var"
-    assert docstring.params[3].type_name == "str"
+    assert len(docstring.attributes) == 5
+    assert docstring.attributes[0].arg_name == "name"
+    assert docstring.attributes[0].args[0] == "ivar"
+    assert docstring.attributes[0].type_name is None
+    assert docstring.attributes[0].description == "description 1"
+    assert docstring.attributes[0].default is None
+    assert not docstring.attributes[0].is_optional
+    assert docstring.attributes[1].arg_name == "priority"
+    assert docstring.attributes[1].args[0] == "ivar"
+    assert docstring.attributes[1].type_name == "int"
+    assert docstring.attributes[1].description == "description 2"
+    assert not docstring.attributes[1].is_optional
+    assert docstring.attributes[1].default is None
+    assert docstring.attributes[2].arg_name == "sender"
+    assert docstring.attributes[2].args[0] == "cvar"
+    assert docstring.attributes[2].type_name == "str"
+    assert docstring.attributes[2].description == "description 3"
+    assert docstring.attributes[2].is_optional
+    assert docstring.attributes[2].default is None
+    assert docstring.attributes[3].arg_name == "message"
+    assert docstring.attributes[3].args[0] == "var"
+    assert docstring.attributes[3].type_name == "str"
     assert (
-        docstring.params[3].description == "description 4, defaults to 'hello'"
+        docstring.attributes[3].description
+        == "description 4, defaults to 'hello'"
     )
-    assert docstring.params[3].is_optional
-    assert docstring.params[3].default == "'hello'"
-    assert docstring.params[4].arg_name == "multiline"
-    assert docstring.params[4].type_name == "str"
-    assert docstring.params[4].args[0] == "var"
+    assert docstring.attributes[3].is_optional
+    assert docstring.attributes[3].default == "'hello'"
+    assert docstring.attributes[4].arg_name == "multiline"
+    assert docstring.attributes[4].type_name == "str"
+    assert docstring.attributes[4].args[0] == "var"
     assert (
-        docstring.params[4].description
+        docstring.attributes[4].description
         == "long description 5,\ndefaults to 'bye'"
     )
-    assert docstring.params[4].is_optional
-    assert docstring.params[4].default == "'bye'"
+    assert docstring.attributes[4].is_optional
+    assert docstring.attributes[4].default == "'bye'"
+
+
+@pytest.mark.parametrize("attribute_kind", ["ivar", "cvar", "var"])
+@pytest.mark.parametrize("rendering_style", list(RenderingStyle))
+def test_attribute_type_association_and_roundtrip(
+    attribute_kind: str, rendering_style: RenderingStyle
+) -> None:
+    """Keep Epydoc attribute types separate from same-named parameters."""
+    source = (
+        f"@type value: str\n@{attribute_kind} value: attribute\n"
+        f"@param value: parameter\n@type value: int\n"
+        f"@param other: other\n@type other: float"
+    )
+    docstring = parse(source)
+    assert [
+        (item.arg_name, item.type_name, item.description)
+        for item in docstring.attributes
+    ] == [("value", "str", "attribute")]
+    assert [
+        (item.arg_name, item.type_name, item.description)
+        for item in docstring.params
+    ] == [
+        ("value", "int", "parameter"),
+        ("other", "float", "other"),
+    ]
+    roundtrip = parse(compose(docstring, rendering_style=rendering_style))
+    assert [
+        (item.args[0], item.arg_name, item.type_name, item.description)
+        for item in roundtrip.attributes
+    ] == [(attribute_kind, "value", "str", "attribute")]
 
 
 def test_returns() -> None:

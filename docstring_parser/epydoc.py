@@ -134,14 +134,60 @@ def parse(text: T.Optional[str]) -> Docstring:
             desc = first_line + "\n" + inspect.cleandoc(rest)
         stream.append((base, key, args, desc))
 
+    # Epydoc uses one ``@type`` spelling for parameter and attribute fields.
+    # Resolve each type against a declared field with the same name. A
+    # preceding untyped declaration wins; if none exists, the first following
+    # untyped declaration wins. This preserves both namespaces without making
+    # adjacency part of the format.
+    typed_declarations: T.Set[int] = set()
+    resolved_stream: T.List[T.Tuple[str, str, T.List[str], str]] = []
+    for index, (base, key, args, desc) in enumerate(stream):
+        if key != "type" or not args:
+            resolved_stream.append((base, key, args, desc))
+            continue
+        candidates = [
+            (candidate_index, candidate_base)
+            for candidate_index, (
+                candidate_base,
+                candidate_key,
+                candidate_args,
+                _,
+            ) in enumerate(stream)
+            if candidate_key != "type"
+            and candidate_base in {"param", "attribute"}
+            and candidate_args == args
+        ]
+        prior = [
+            item
+            for item in candidates
+            if item[0] < index and item[0] not in typed_declarations
+        ]
+        future = [
+            item
+            for item in candidates
+            if item[0] > index and item[0] not in typed_declarations
+        ]
+        target = (
+            max(prior or future, key=lambda item: item[0])
+            if prior
+            else (min(future, key=lambda item: item[0]) if future else None)
+        )
+        if target is not None:
+            base = target[1]
+            typed_declarations.add(target[0])
+        resolved_stream.append((base, key, args, desc))
+    stream = resolved_stream
+
     # Combine type_name, arg_name, and description information
-    params: T.Dict[str, T.Dict[str, T.Any]] = {}
+    # Keep parameters and attributes with the same name independent while
+    # still allowing @type/@description fields to be combined per item.
+    params: T.Dict[T.Tuple[str, str], T.Dict[str, T.Any]] = {}
     for base, key, args, desc in stream:
         if base not in ["param", "attribute", "return"]:
             continue  # nothing to do
 
         (arg_name,) = args or ("return",)
-        info = params.setdefault(arg_name, {})
+        info = params.setdefault((base, arg_name), {})
         info_key = "type_name" if "type" in key else "description"
         info[info_key] = desc
 
@@ -152,11 +198,13 @@ def parse(text: T.Optional[str]) -> Docstring:
                     f'Error parsing meta information for "{arg_name}".'
                 )
 
-    is_done: T.Dict[str, bool] = {}
+    is_done: T.Dict[T.Tuple[str, str], bool] = {}
     for base, key, args, desc in stream:
-        if base in ["param", "attribute"] and not is_done.get(args[0], False):
+        if base in ["param", "attribute"] and not is_done.get(
+            (base, args[0]), False
+        ):
             (arg_name,) = args
-            info = params[arg_name]
+            info = params[(base, arg_name)]
             type_name = info.get("type_name")
 
             if type_name and type_name.endswith("?"):
@@ -168,24 +216,40 @@ def parse(text: T.Optional[str]) -> Docstring:
             match = re.match(r".*defaults to (.+)", desc, flags=re.DOTALL)
             default = match.group(1).rstrip(".") if match else None
 
+            meta_key = key
+            if key == "type":
+                for (
+                    declaration_base,
+                    declaration_key,
+                    declaration_args,
+                    _,
+                ) in stream:
+                    if (
+                        declaration_base == base
+                        and declaration_key != "type"
+                        and declaration_args == args
+                    ):
+                        meta_key = declaration_key
+                        break
+
             meta_item = DocstringParam(
-                args=[key, arg_name],
+                args=[meta_key, arg_name],
                 description=info.get("description"),
                 arg_name=arg_name,
                 type_name=type_name,
                 is_optional=is_optional,
                 default=default,
             )
-            is_done[arg_name] = True
-        elif base == "return" and not is_done.get("return", False):
-            info = params["return"]
+            is_done[(base, arg_name)] = True
+        elif base == "return" and not is_done.get(("return", "return"), False):
+            info = params[("return", "return")]
             meta_item = DocstringReturns(
                 args=[key],
                 description=info.get("description"),
                 type_name=info.get("type_name"),
                 is_generator=info.get("is_generator", False),
             )
-            is_done["return"] = True
+            is_done[("return", "return")] = True
         elif base == "raise":
             (type_name,) = args or (None,)
             meta_item = DocstringRaises(
@@ -199,8 +263,8 @@ def parse(text: T.Optional[str]) -> Docstring:
                 description=desc,
             )
         else:
-            (key, *_) = args or ("return",)
-            assert is_done.get(key, False)
+            item_key = args[0] if args else "return"
+            assert is_done.get((base, item_key), False)
             continue  # don't append
 
         ret.meta.append(meta_item)
@@ -254,13 +318,27 @@ def compose(
                     if meta.is_optional
                     else meta.type_name
                 )
-                text = f"@type {meta.arg_name}:"
-                text += process_desc(type_name, True)
-                parts.append(text)
-            text = f"@param {meta.arg_name}:" + process_desc(
+                type_text = f"@type {meta.arg_name}:" + process_desc(
+                    type_name, True
+                )
+            else:
+                type_text = None
+            key = (
+                meta.args[0]
+                if meta.args and meta.args[0] in {"ivar", "cvar", "var"}
+                else "ivar" if meta.is_attribute else "param"
+            )
+            text = f"@{key} {meta.arg_name}:" + process_desc(
                 meta.description, False
             )
-            parts.append(text)
+            if meta.is_attribute:
+                parts.append(text)
+                if type_text:
+                    parts.append(type_text)
+            else:
+                if type_text:
+                    parts.append(type_text)
+                parts.append(text)
         elif isinstance(meta, DocstringReturns):
             (arg_key, type_key) = (
                 ("yield", "ytype")

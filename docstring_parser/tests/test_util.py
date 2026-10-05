@@ -1,6 +1,7 @@
 """Test for utility functions."""
 
-from docstring_parser.common import DocstringReturns
+from docstring_parser import parse
+from docstring_parser.common import DocstringReturns, DocstringStyle
 from docstring_parser.util import combine_docstrings
 
 
@@ -62,3 +63,32 @@ def test_combine_docstrings() -> None:
         ":param arg_c: fun2\n"
         ":param arg_e: fun2"
     )
+
+
+def test_combine_preserves_attribute_priority() -> None:
+    """Keep attribute precedence separate from function parameters."""
+
+    def source_one(value):
+        """:attribute value: source one
+        :attribute other: other source
+        """
+        return value
+
+    def source_two(value):
+        """:attribute value: source two"""
+        return value
+
+    @combine_docstrings(source_one, source_two)
+    def decorated(value):
+        """:param value: function value
+        :attribute value: wrapped attribute
+        """
+        return value
+
+    docstring = parse(decorated.__doc__, style=DocstringStyle.REST)
+    assert [
+        (item.arg_name, item.description) for item in docstring.params
+    ] == [("value", "function value")]
+    assert [
+        (item.arg_name, item.description) for item in docstring.attributes
+    ] == [("value", "source one"), ("other", "other source")]

@@ -37,6 +37,12 @@ Example usage:
 
 Read [API Documentation](https://rr-.github.io/docstring_parser/).
 
+`DocstringParam` keeps the original protocol information in `args`. The
+computed `is_attribute` property identifies attribute entries from the first
+protocol kind (`attribute`, `ivar`, `cvar`, or `var`). Use
+`docstring.attributes` for attribute entries; `docstring.params` contains
+function parameters, `Other Parameters`, and `Receives` entries.
+
 # Installation
 
 Installation using pip

@@ -3,7 +3,7 @@
 import typing as T
 
 import pytest
-from docstring_parser.common import DocstringStyle, ParseError
+from docstring_parser.common import DocstringParam, DocstringStyle, ParseError
 from docstring_parser.parser import parse
 
 
@@ -27,6 +27,24 @@ def test_short_description(
     assert docstring.description == expected
     assert docstring.long_description is None
     assert not docstring.meta
+
+
+def test_attribute_protocol_is_computed_from_first_arg_only() -> None:
+    """Manual metadata keeps empty args and parameter names ordinary."""
+    attribute = DocstringParam(
+        ["attribute", "field"], "attribute", "field", None, None, None
+    )
+    ordinary = DocstringParam(
+        ["param", "attribute"], "parameter", "attribute", None, None, None
+    )
+    empty = DocstringParam([], "parameter", "field", None, None, None)
+    docstring = parse("")
+    docstring.meta = [attribute, ordinary, empty]
+    assert attribute.is_attribute
+    assert not ordinary.is_attribute
+    assert not empty.is_attribute
+    assert docstring.attributes == [attribute]
+    assert docstring.params == [ordinary, empty]
 
 
 def test_rest() -> None:

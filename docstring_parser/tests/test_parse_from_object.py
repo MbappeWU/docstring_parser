@@ -15,10 +15,10 @@ def test_from_module_attribute_docstrings() -> None:
     docstring = parse_from_object(test_parse_from_object)
 
     assert "parse_from_object" in docstring.short_description
-    assert len(docstring.params) == 1
-    assert docstring.params[0].arg_name == "module_attr"
-    assert docstring.params[0].type_name == "int"
-    assert docstring.params[0].description == "Description for module_attr"
+    assert len(docstring.attributes) == 1
+    assert docstring.attributes[0].arg_name == "module_attr"
+    assert docstring.attributes[0].type_name == "int"
+    assert docstring.attributes[0].description == "Description for module_attr"
 
 
 def test_from_class_attribute_docstrings() -> None:
@@ -39,13 +39,13 @@ def test_from_class_attribute_docstrings() -> None:
     assert docstring.short_description == "Short description"
     assert docstring.long_description == "Long description"
     assert docstring.description == "Short description\nLong description"
-    assert len(docstring.params) == 2
-    assert docstring.params[0].arg_name == "attr_one"
-    assert docstring.params[0].type_name == "str"
-    assert docstring.params[0].description == "Description for attr_one"
-    assert docstring.params[1].arg_name == "attr_two"
-    assert docstring.params[1].type_name == "bool"
-    assert docstring.params[1].description == "Description for attr_two"
+    assert len(docstring.attributes) == 2
+    assert docstring.attributes[0].arg_name == "attr_one"
+    assert docstring.attributes[0].type_name == "str"
+    assert docstring.attributes[0].description == "Description for attr_one"
+    assert docstring.attributes[1].arg_name == "attr_two"
+    assert docstring.attributes[1].type_name == "bool"
+    assert docstring.attributes[1].description == "Description for attr_two"
 
 
 def test_from_class_attribute_docstrings_without_type() -> None:
@@ -60,10 +60,10 @@ def test_from_class_attribute_docstrings_without_type() -> None:
     assert docstring.short_description is None
     assert docstring.long_description is None
     assert docstring.description is None
-    assert len(docstring.params) == 1
-    assert docstring.params[0].arg_name == "attr_one"
-    assert docstring.params[0].type_name is None
-    assert docstring.params[0].description == "Description for attr_one"
+    assert len(docstring.attributes) == 1
+    assert docstring.attributes[0].arg_name == "attr_one"
+    assert docstring.attributes[0].type_name is None
+    assert docstring.attributes[0].description == "Description for attr_one"
 
 
 def test_from_class_without_source() -> None:
